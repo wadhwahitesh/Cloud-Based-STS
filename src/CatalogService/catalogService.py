@@ -3,6 +3,7 @@ import json
 import threading
 import socket
 import os
+import requests
 
 
 #Making pyro threaded server
@@ -62,6 +63,11 @@ class CatalogService(object):
             DATA[stock_name]["volume"]+=quantity
             with open("data/stocks.json", "w") as outfile:
                 json.dump(DATA, outfile)
+                
+             # Send an invalidation request to the front-end server
+            url = "http://localhost:8080/invalidate_cache"
+            invalidate_data = {"stock_name": stock_name}
+            response = requests.post(url, data=invalidate_data)
             return 1
 
 
