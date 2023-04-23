@@ -6,18 +6,26 @@ import json
 import os
 import Pyro5.api as pyro
 from dotenv import load_dotenv
+import time
 load_dotenv()
 
 
-HOST = "0.0.0.0"    #Running over all available ips
+HOST = "localhost"   #Running over all available ips
 PORT = int(os.getenv("HOST_PORT"))#Loading from env variable
 NUM_THREADS = 5 #Setting max threads
+NUM_REPLICAS = int(os.getenv("NUM_REPLICAS"))
+REPLICAS = [""]*4
+LEADER = None
+cache = {}
 
-
+for i in range(1,NUM_REPLICAS+1):
+        REPLICAS[i] = os.getenv("ORDERSERVICE_"+str(i))
 
 #Creating the threaded server
 class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     pass
+
+
 
 
 #Creating handler
@@ -27,10 +35,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
         #ns = pyro.locate_ns()
         CatalogService = pyro.Proxy("PYRONAME:service.catalog")#Getting Pyro Proxy
         parsed_url = urlparse(self.path).path.split('/')
-        #print(parsed_url.path.split('/'))
-        #stock_name = parsed_url.path.split('/')[-1]
-        if parsed_url[1] == "stocks":#Checking if correct GET request is made
-            response = CatalogService.Lookup(parsed_url[-1])
+        if parsed_url[1] == "stocks":    #Checking if correct GET request is made
+            if parsed_url[-1].lower() in cache:
+                print("Found in cache")
+                response = cache[parsed_url[-1].lower()]
+            else:
+                print("Fetching...")
+                response = CatalogService.Lookup(parsed_url[-1])
+                cache[parsed_url[-1].lower()] = response
+                print(cache)
             self.send_response(200)
             self.send_header('Content-Type', 'json')
             self.end_headers()
@@ -38,17 +51,57 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 
     def do_POST(self):
-        OrderService = pyro.Proxy("PYRONAME:service.order")
-        parsed_url = urlparse(self.path).path.split('/')
-        if parsed_url[1] == "orders":
+        if self.path == '/invalidate_cache':
             content_length = int(self.headers['Content-Length'])
-            orderData = json.loads(self.rfile.read(content_length).decode())#Getting Post request data
-            response = OrderService.Trade(orderData["name"], orderData["type"], orderData["quantity"])
-            self.send_response(200)
-            self.send_header('Content-Type', 'json')
-            self.end_headers()
-            self.wfile.write(response.encode('utf-8'))
+            post_data = self.rfile.read(content_length)
+            stock_name = post_data.decode('utf-8').split('=')[1]
+            print("Inside invalidate {}".format(stock_name))
 
+            if stock_name.lower() in cache:
+                del cache[stock_name.lower()]
+            response_text = "Cache invalidated for {}".format(stock_name)
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(response_text.encode('utf-8'))
+        else:    
+            OrderService = pyro.Proxy("PYRONAME:service.order")
+            parsed_url = urlparse(self.path).path.split('/')
+            if parsed_url[1] == "orders":
+                content_length = int(self.headers['Content-Length'])
+                orderData = json.loads(self.rfile.read(content_length).decode())#Getting Post request data
+                response = OrderService.Trade(orderData["name"], orderData["type"], orderData["quantity"])
+                self.send_response(200)
+                self.send_header('Content-Type', 'json')
+                self.end_headers()
+                self.wfile.write(response.encode('utf-8'))
+
+
+
+def leader_election():
+
+    print("Electing Leader, Please Wait......")
+    for i in range(NUM_REPLICAS,0,-1):
+        if pyro.Proxy("PYRONAME:{}".format(REPLICAS[i])).healthCheck():
+            LEADER = i
+            break
+    
+    if LEADER==None:
+        time.sleep(2)
+        print("Leader Not Found Yet, Trying Again")
+        leader_election()
+    
+    
+    for i in range(NUM_REPLICAS,0,-1):
+        replica  = pyro.Proxy("PYRONAME:{}".format(REPLICAS[i]))
+        if i==LEADER:
+            replica.leaderSelected(LEADER, [j for j in range(1,NUM_REPLICAS+1) if j != LEADER])
+        else:
+            replica.leaderSelected(LEADER)
+
+    print("Leader Elected:{}".format(LEADER))
+
+
+    
 
 
 if __name__ == "__main__":
@@ -67,4 +120,7 @@ if __name__ == "__main__":
 
     # Start server
     print("Server listening on http://{}:{}".format(HOST, PORT))
+    leader_election()
+
     httpd.serve_forever()
+    
