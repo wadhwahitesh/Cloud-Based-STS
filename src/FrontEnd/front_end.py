@@ -6,16 +6,20 @@ import json
 import os
 import Pyro5.api as pyro
 from dotenv import load_dotenv
+import time
 load_dotenv()
 
 
 HOST = "localhost"   #Running over all available ips
 PORT = int(os.getenv("HOST_PORT"))#Loading from env variable
 NUM_THREADS = 5 #Setting max threads
-
-
+NUM_REPLICAS = int(os.getenv("NUM_REPLICAS"))
+REPLICAS = [""]*4
+LEADER = None
 cache = {}
 
+for i in range(1,NUM_REPLICAS+1):
+        REPLICAS[i] = os.getenv("ORDERSERVICE_"+str(i))
 
 #Creating the threaded server
 class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
@@ -71,6 +75,35 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(response.encode('utf-8'))
 
+
+
+def leader_election():
+
+    print("Electing Leader, Please Wait......")
+    for i in range(NUM_REPLICAS,0,-1):
+        if pyro.Proxy("PYRONAME:{}".format(REPLICAS[i])).healthCheck():
+            LEADER = i
+            break
+    
+    if LEADER==None:
+        time.sleep(2)
+        print("Leader Not Found Yet, Trying Again")
+        leader_election()
+    
+    
+    for i in range(NUM_REPLICAS,0,-1):
+        replica  = pyro.Proxy("PYRONAME:{}".format(REPLICAS[i]))
+        if i==LEADER:
+            replica.leaderSelected(LEADER, [j for j in range(1,NUM_REPLICAS+1) if j != LEADER])
+        else:
+            replica.leaderSelected(LEADER)
+
+    print("Leader Elected:{}".format(LEADER))
+
+
+    
+
+
 if __name__ == "__main__":
     
 
@@ -87,4 +120,7 @@ if __name__ == "__main__":
 
     # Start server
     print("Server listening on http://{}:{}".format(HOST, PORT))
+    leader_election()
+
     httpd.serve_forever()
+    
