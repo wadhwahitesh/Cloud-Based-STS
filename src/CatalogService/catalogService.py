@@ -71,8 +71,8 @@ class CatalogService(object):
             return 1
 
 
-container_ip = socket.gethostbyname(socket.gethostname())       #Getting host ip for finding nameserver
-daemon = Pyro5.server.Daemon(host = container_ip)         # make a Pyro daemon
+#container_ip = socket.gethostbyname(socket.gethostname())       #Getting host ip for finding nameserver
+daemon = Pyro5.server.Daemon()         # make a Pyro daemon
 # find the name server
 ns = Pyro5.api.locate_ns()  #Locating nameserver
 uri = daemon.register(CatalogService)

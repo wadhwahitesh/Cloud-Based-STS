@@ -46,10 +46,8 @@ class OrderService(object):
     
     def leaderSelected(self, ID, followers = None):
         OrderService.LEADER_ID = ID
-        print(type(ID) ,type(OrderService.ID), followers)
         if ID == OrderService.ID:
             OrderService.FOLLOWERS = followers
-            print(OrderService.FOLLOWERS)
 
 
     def Trade(self, stock_name, trade_type, quantity):
@@ -61,11 +59,14 @@ class OrderService(object):
         if response==1:
             with lock:
                 MSG1["data"]["transaction_number"] = OrderService.Transaction_id    #Assiging transaction ID
+                order_details = None
                 with open(OrderService.LOG_FILE, "a") as file:
                     writer = csv.writer(file)
                     if os.path.getsize(OrderService.LOG_FILE) == 0:
                         writer.writerow(["Transaction ID", "Stock Name", "Order Type", "Quantity"])#Adding headers if it's a new file
-                    writer.writerow([OrderService.Transaction_id, stock_name, trade_type, quantity])
+                    order_details = [OrderService.Transaction_id,
+                                     stock_name, trade_type, quantity]
+                    writer.writerow(order_details)
                 OrderService.Transaction_id+=1
                 with open(OrderService.PICKLE_FILE, "wb") as f:
                     pickle.dump(OrderService.Transaction_id, f) #Storing Transaction ID
@@ -73,7 +74,7 @@ class OrderService(object):
                 for follower_id in OrderService.FOLLOWERS:
                     follower = Pyro5.api.Proxy(f"PYRONAME:service.order{follower_id}")
                     follower.updateLog(
-                        [OrderService.Transaction_id, stock_name, trade_type, quantity])
+                        order_details)
                 return json.dumps(MSG1)
         elif response==0:
             return json.dumps(MSG0)

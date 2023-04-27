@@ -64,7 +64,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(response_text.encode('utf-8'))
         else:    
-            OrderService = pyro.Proxy("PYRONAME:service.order")
+            OrderService = pyro.Proxy("PYRONAME:service.order"+str(LEADER))
             parsed_url = urlparse(self.path).path.split('/')
             if parsed_url[1] == "orders":
                 content_length = int(self.headers['Content-Length'])
@@ -78,6 +78,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 
 def leader_election():
+    global LEADER
 
     print("Electing Leader, Please Wait......")
     for i in range(NUM_REPLICAS,0,-1):
