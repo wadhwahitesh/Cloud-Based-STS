@@ -33,9 +33,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         # Handle GET request here
         #ns = pyro.locate_ns()
-        CatalogService = pyro.Proxy("PYRONAME:service.catalog")#Getting Pyro Proxy
+        
         parsed_url = urlparse(self.path).path.split('/')
         if parsed_url[1] == "stocks":    #Checking if correct GET request is made
+            CatalogService = pyro.Proxy(
+                "PYRONAME:service.catalog")  # Getting Pyro Proxy
             if parsed_url[-1].lower() in cache:
                 print("Found in cache")
                 response = cache[parsed_url[-1].lower()]
@@ -48,6 +50,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_header('Content-Type', 'json')
             self.end_headers()
             self.wfile.write(response.encode('utf-8'))
+        elif parsed_url[1] == "leaderID":
+            self.send_response(200)
+            self.send_header('Content-Type', 'json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"ID":LEADER}).encode('utf-8'))
+            
+
 
 
     def do_POST(self):
