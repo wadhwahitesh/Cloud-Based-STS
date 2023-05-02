@@ -8,10 +8,14 @@ import threading
 import socket
 import sys
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Making pyro threaded server
 Pyro5.config.SERVERTYPE = "thread"
 Pyro5.config.THREADPOOL_SIZE_MIN = 5
+NUM_REPLICAS = int(os.getenv("NUM_REPLICAS"))
 
 lock = threading.Lock()
 
@@ -38,27 +42,37 @@ class OrderService(object):
     #ID = None
     PICKLE_FILE = f"data/last_id_{ID}.pickle"
     LOG_FILE = f"data/tradeLog_{ID}.csv"
-    FOLLOWERS = None
+    # FOLLOWERS = None
     if os.path.exists(PICKLE_FILE):#Checking if last transaction ID is pickled
         with open(PICKLE_FILE, "rb") as f:
             Transaction_id = pickle.load(f)
     else:
         Transaction_id = 0
+    
+    try:
 
-    url = "http://localhost:8080/leaderID"
-    response = requests.get(url)
-    if response.status_code == 200:
-        LEADER_ID=json.loads(response.read().decode())['ID']
-        if LEADER_ID != None and LEADER_ID!=ID:
-            transactions=Pyro5.api.Proxy(f"PYRONAME:service.order{LEADER_ID}").fetch_transactions(Transaction_id)
-            with open(LOG_FILE, "a") as file:
-                writer = csv.writer(file)
-                if os.path.getsize(LOG_FILE) == 0:
-                    writer.writerow(["Transaction ID", "Stock Name", "Order Type", "Quantity"])#Adding headers if it's a new file
-                for transaction in transactions:
-                    writer.writerow(transaction)
-    else:
-        print('Request failed with status code:', response.status_code)
+        url = "http://localhost:8080/leaderID"
+        response = requests.get(url)
+        if response.status_code == 200:
+            LEADER_ID = json.loads(response.content.decode())['ID']
+            print(LEADER_ID)
+            if LEADER_ID != None:
+                transactions=Pyro5.api.Proxy(f"PYRONAME:service.order{LEADER_ID}").fetch_transactions(Transaction_id-1)
+                print(transactions)
+                with open(LOG_FILE, "a") as file:
+                    writer = csv.writer(file)
+                    if os.path.getsize(LOG_FILE) == 0:
+                        writer.writerow(["Transaction ID", "Stock Name", "Order Type", "Quantity"])#Adding headers if it's a new file
+                    for transaction in transactions:
+                            writer.writerow(transaction)
+                    Transaction_id += len(transactions)
+                    with open(PICKLE_FILE, "wb") as f:
+                        pickle.dump(Transaction_id, f)
+        else:
+            print('Request failed with status code:', response.status_code)
+    except Exception as e:
+        print(e)
+        print("Front end not active, No leader appointed!")
     
     def fetch_transactions(self, id):
         entries = []
@@ -67,18 +81,19 @@ class OrderService(object):
                 reader = csv.reader(file)
                 found_id = False
                 for row in reader:
+                    print(found_id)
                     if found_id:
                         entries.append(row)
-                    elif row[0] == id:
+                    elif row[0] == id or id == -1:
                         found_id = True
         
         return entries
 
     
-    def leaderSelected(self, ID, followers = None):
+    def leaderSelected(self, ID):
         OrderService.LEADER_ID = ID
-        if ID == OrderService.ID:
-            OrderService.FOLLOWERS = followers
+        # if ID == OrderService.ID:
+        #     OrderService.FOLLOWERS = followers
 
 
     def Trade(self, stock_name, trade_type, quantity):
@@ -101,11 +116,16 @@ class OrderService(object):
                 OrderService.Transaction_id+=1
                 with open(OrderService.PICKLE_FILE, "wb") as f:
                     pickle.dump(OrderService.Transaction_id, f) #Storing Transaction ID
-                
-                for follower_id in OrderService.FOLLOWERS:
-                    follower = Pyro5.api.Proxy(f"PYRONAME:service.order{follower_id}")
-                    follower.updateLog(
-                        order_details)
+                # print(OrderService.FOLLOWERS)
+                for follower_id in range(1,NUM_REPLICAS+1):
+                    try:
+                        if follower_id != OrderService.ID:
+                            follower = Pyro5.api.Proxy(f"PYRONAME:service.order{follower_id}")
+                            follower.updateLog(
+                                order_details)
+                    except Exception as e:
+                        print(e)
+                        continue
                 return json.dumps(MSG1)
         elif response==0:
             return json.dumps(MSG0)

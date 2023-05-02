@@ -5,8 +5,10 @@ from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 import Pyro5.api as pyro
+import Pyro5
 from dotenv import load_dotenv
 import time
+import threading
 load_dotenv()
 
 
@@ -25,6 +27,8 @@ for i in range(1,NUM_REPLICAS+1):
 class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     pass
 
+lock = threading.Lock()
+
 
 
 
@@ -35,17 +39,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
         #ns = pyro.locate_ns()
         
         parsed_url = urlparse(self.path).path.split('/')
-        if parsed_url[1] == "stocks":    #Checking if correct GET request is made
+
+        if parsed_url[1] == "stocks":    #Checking if correct GET request is mad
             CatalogService = pyro.Proxy(
                 "PYRONAME:service.catalog")  # Getting Pyro Proxy
-            if parsed_url[-1].lower() in cache:
-                print("Found in cache")
-                response = cache[parsed_url[-1].lower()]
-            else:
-                print("Fetching...")
-                response = CatalogService.Lookup(parsed_url[-1])
-                cache[parsed_url[-1].lower()] = response
-                print(cache)
+            with lock:
+                if parsed_url[-1].lower() in cache:
+                    print("Found in cache")
+                    response = cache[parsed_url[-1].lower()]
+                else:
+                    print("Fetching...")
+                    response = CatalogService.Lookup(parsed_url[-1])
+                    cache[parsed_url[-1].lower()] = response
+                    print(cache)
             self.send_response(200)
             self.send_header('Content-Type', 'json')
             self.end_headers()
@@ -61,23 +67,36 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self):
         if self.path == '/invalidate_cache':
-            content_length = int(self.headers['Content-Length'])
-            post_data = self.rfile.read(content_length)
-            stock_name = post_data.decode('utf-8').split('=')[1]
-            print("Inside invalidate {}".format(stock_name))
-
-            if stock_name.lower() in cache:
-                del cache[stock_name.lower()]
-            response_text = "Cache invalidated for {}".format(stock_name)
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(response_text.encode('utf-8'))
-        else:    
-            OrderService = pyro.Proxy("PYRONAME:service.order"+str(LEADER))
-            parsed_url = urlparse(self.path).path.split('/')
-            if parsed_url[1] == "orders":
+            with lock:
                 content_length = int(self.headers['Content-Length'])
-                orderData = json.loads(self.rfile.read(content_length).decode())#Getting Post request data
+                post_data = self.rfile.read(content_length)
+                stock_name = post_data.decode('utf-8').split('=')[1]
+                print("Inside invalidate {}".format(stock_name))
+
+                if stock_name.lower() in cache:
+                    del cache[stock_name.lower()]
+                response_text = "Cache invalidated for {}".format(stock_name)
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(response_text.encode('utf-8'))
+                print(12345)
+        else:
+            orderData={}
+            try:
+                OrderService = pyro.Proxy("PYRONAME:service.order"+str(LEADER))
+                parsed_url = urlparse(self.path).path.split('/')
+                if parsed_url[1] == "orders":
+                    content_length = int(self.headers['Content-Length'])
+                    orderData = json.loads(self.rfile.read(content_length).decode())#Getting Post request data
+                    response = OrderService.Trade(orderData["name"], orderData["type"], orderData["quantity"])
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'json')
+                    self.end_headers()
+                    print(1234)
+                    self.wfile.write(response.encode('utf-8'))
+            except:
+                leader_election()
+                OrderService = pyro.Proxy("PYRONAME:service.order"+str(LEADER))
                 response = OrderService.Trade(orderData["name"], orderData["type"], orderData["quantity"])
                 self.send_response(200)
                 self.send_header('Content-Type', 'json')
@@ -91,9 +110,12 @@ def leader_election():
 
     print("Electing Leader, Please Wait......")
     for i in range(NUM_REPLICAS,0,-1):
-        if pyro.Proxy("PYRONAME:{}".format(REPLICAS[i])).healthCheck():
-            LEADER = i
-            break
+        try:
+            if pyro.Proxy("PYRONAME:{}".format(REPLICAS[i])).healthCheck():
+                LEADER = i
+                break
+        except (Pyro5.errors.CommunicationError, Pyro5.errors.NamingError):
+            continue
     
     if LEADER==None:
         time.sleep(2)
@@ -102,11 +124,14 @@ def leader_election():
     
     
     for i in range(NUM_REPLICAS,0,-1):
-        replica  = pyro.Proxy("PYRONAME:{}".format(REPLICAS[i]))
-        if i==LEADER:
-            replica.leaderSelected(LEADER, [j for j in range(1,NUM_REPLICAS+1) if j != LEADER])
-        else:
+        try:
+            replica  = pyro.Proxy("PYRONAME:{}".format(REPLICAS[i]))
+            # if i==LEADER:
+            #     replica.leaderSelected(LEADER, [j for j in range(1,NUM_REPLICAS+1) if j != LEADER])
+            # else:
             replica.leaderSelected(LEADER)
+        except (Pyro5.errors.CommunicationError, Pyro5.errors.NamingError):
+            continue
 
     print("Leader Elected:{}".format(LEADER))
 
