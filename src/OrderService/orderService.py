@@ -7,6 +7,7 @@ import pickle
 import threading
 import socket
 import sys
+import requests
 
 # Making pyro threaded server
 Pyro5.config.SERVERTYPE = "thread"
@@ -43,6 +44,36 @@ class OrderService(object):
             Transaction_id = pickle.load(f)
     else:
         Transaction_id = 0
+
+    url = "http://localhost:8080/leaderID"
+    response = requests.get(url)
+    if response.status_code == 200:
+        LEADER_ID=json.loads(response.read().decode())['ID']
+        if LEADER_ID != None and LEADER_ID!=ID:
+            transactions=Pyro5.api.Proxy(f"PYRONAME:service.order{LEADER_ID}").fetch_transactions(Transaction_id)
+            with open(LOG_FILE, "a") as file:
+                writer = csv.writer(file)
+                if os.path.getsize(LOG_FILE) == 0:
+                    writer.writerow(["Transaction ID", "Stock Name", "Order Type", "Quantity"])#Adding headers if it's a new file
+                for transaction in transactions:
+                    writer.writerow(transaction)
+    else:
+        print('Request failed with status code:', response.status_code)
+    
+    def fetch_transactions(self, id):
+        entries = []
+        if id<OrderService.Transaction_id:
+            with open(OrderService.LOG_FILE, "r") as file:
+                reader = csv.reader(file)
+                found_id = False
+                for row in reader:
+                    if found_id:
+                        entries.append(row)
+                    elif row[0] == id:
+                        found_id = True
+        
+        return entries
+
     
     def leaderSelected(self, ID, followers = None):
         OrderService.LEADER_ID = ID
