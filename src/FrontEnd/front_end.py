@@ -10,7 +10,9 @@ from dotenv import load_dotenv
 import time
 import threading
 load_dotenv()
+# from urllib3 import HTTPConnectionPool
 
+# pool = HTTPConnectionPool(host='example.com', port=80, maxsize=20)
 
 HOST = "localhost"   #Running over all available ips
 PORT = int(os.getenv("HOST_PORT"))#Loading from env variable
