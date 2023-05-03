@@ -9,6 +9,7 @@ import socket
 import sys
 import requests
 from dotenv import load_dotenv
+import traceback
 
 load_dotenv()
 
@@ -54,40 +55,46 @@ class OrderService(object):
         url = "http://localhost:8080/leaderID"
         response = requests.get(url)
         if response.status_code == 200:
-            LEADER_ID = json.loads(response.content.decode())['ID']
+            LEADER_ID = int(json.loads(response.content.decode())['ID'])
             print(LEADER_ID)
+            print(Transaction_id, type(Transaction_id))
             if LEADER_ID != None:
-                transactions=Pyro5.api.Proxy(f"PYRONAME:service.order{LEADER_ID}").fetch_transactions(Transaction_id-1)
-                print(transactions)
-                with open(LOG_FILE, "a") as file:
-                    writer = csv.writer(file)
-                    if os.path.getsize(LOG_FILE) == 0:
-                        writer.writerow(["Transaction ID", "Stock Name", "Order Type", "Quantity"])#Adding headers if it's a new file
-                    for transaction in transactions:
-                            writer.writerow(transaction)
-                    Transaction_id += len(transactions)
-                    with open(PICKLE_FILE, "wb") as f:
-                        pickle.dump(Transaction_id, f)
+                with lock:
+                    transactions=Pyro5.api.Proxy(f"PYRONAME:service.order{LEADER_ID}").fetch_transactions(Transaction_id-1)
+                    print(transactions)
+                    with open(LOG_FILE, "a") as file:
+                        writer = csv.writer(file)
+                        if os.path.getsize(LOG_FILE) == 0:
+                            writer.writerow(["Transaction ID", "Stock Name", "Order Type", "Quantity"])#Adding headers if it's a new file
+                        for transaction in transactions:
+                                writer.writerow(transaction)
+                        Transaction_id += len(transactions)
+                        with open(PICKLE_FILE, "wb") as f:
+                            pickle.dump(Transaction_id, f)
         else:
             print('Request failed with status code:', response.status_code)
     except Exception as e:
-        print(e)
+        print(traceback.print_exc())
         print("Front end not active, No leader appointed!")
     
     def fetch_transactions(self, id):
         entries = []
-        if id<OrderService.Transaction_id:
-            with open(OrderService.LOG_FILE, "r") as file:
-                reader = csv.reader(file)
-                found_id = False
-                for row in reader:
-                    print(found_id)
-                    if found_id:
-                        entries.append(row)
-                    elif row[0] == id or id == -1:
-                        found_id = True
-        
-        return entries
+        print("id"+str(id))
+        with lock:
+            current_transaction_id=OrderService.Transaction_id
+            if id<OrderService.Transaction_id:
+                with open(OrderService.LOG_FILE, "r") as file:
+                    reader = csv.reader(file)
+                    next(reader)
+                    found_id = False
+                    for row in reader:
+                        if int(row[0])>current_transaction_id:
+                            break
+                        elif found_id or id==-1:
+                            entries.append(row)
+                        elif int(row[0]) == id:
+                            found_id = True
+            return entries
 
     
     def leaderSelected(self, ID):
@@ -131,6 +138,7 @@ class OrderService(object):
             return json.dumps(MSG0)
         else:
             return json.dumps(MSGn1)
+    
     def healthCheck(self):
         return True
 
@@ -138,14 +146,15 @@ class OrderService(object):
         OrderService.LEADER_ID = leader_ID
     
     def updateLog(self, order_details):
-        with open(OrderService.LOG_FILE, "a") as file:
-            writer = csv.writer(file)
-            if os.path.getsize(OrderService.LOG_FILE) == 0:
-                writer.writerow(["Transaction ID", "Stock Name", "Order Type", "Quantity"]) # Adding headers if it's a new file
-            writer.writerow(order_details)
-        OrderService.Transaction_id += 1
-        with open(OrderService.PICKLE_FILE, "wb") as f:
-            pickle.dump(OrderService.Transaction_id, f)
+        with lock:
+            with open(OrderService.LOG_FILE, "a") as file:
+                writer = csv.writer(file)
+                if os.path.getsize(OrderService.LOG_FILE) == 0:
+                    writer.writerow(["Transaction ID", "Stock Name", "Order Type", "Quantity"]) # Adding headers if it's a new file
+                writer.writerow(order_details)
+            OrderService.Transaction_id += 1
+            with open(OrderService.PICKLE_FILE, "wb") as f:
+                pickle.dump(OrderService.Transaction_id, f)
 
 
         
