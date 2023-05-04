@@ -53,7 +53,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     print("Fetching...")
                     response = CatalogService.Lookup(parsed_url[-1])
                     cache[parsed_url[-1].lower()] = response
-                    print(cache)
             self.send_response(200)
             self.send_header('Content-Type', 'json')
             self.end_headers()
@@ -86,7 +85,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.end_headers()
                 self.wfile.write(response_text.encode('utf-8'))
-                print(12345)
         else:
             orderData={}
             try:
@@ -99,7 +97,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     self.send_response(200)
                     self.send_header('Content-Type', 'json')
                     self.end_headers()
-                    print(1234)
                     self.wfile.write(response.encode('utf-8'))
             except:
                 leader_election()
