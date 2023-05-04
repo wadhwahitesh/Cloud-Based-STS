@@ -1,4 +1,9 @@
 [![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-24ddc0f5d75046c5622901739e7c5dd533143b0c8e959d652212380cedb1ea36.svg)](https://classroom.github.com/a/9leuiy3v)
+Submitted by:
+Anchal Gupta
+Hitesh Wadhwa
+
+
 Compsci 677: Distributed and Operating Systems
 
 Spring 2023
@@ -15,10 +20,10 @@ The lab has the following learning outcomes with regard to concepts covered in c
 
 ## Information about your submission
 
-1. Name and email: add your name and email here.
-2. Team member name and email: add team member info. say none if this is a solo submission
-3. Number of late days used for this lab: say zero if none used
-4. Number of late days used so far including this lab: say zero if none used.
+1. Name and email: Anchal Gupta anchalgupta@umass.edu
+2. Team member name and email: Hitesh Wadhwa hwadhwa@umass.edu
+3. Number of late days used for this lab: 3
+4. Number of late days used so far including this lab: 3
 
 ## Instructions
 
