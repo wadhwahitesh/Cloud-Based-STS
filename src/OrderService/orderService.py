@@ -50,18 +50,16 @@ class OrderService(object):
     else:
         Transaction_id = 0
     
+    #Getting all the new transactions from the leader
     try:
 
         url = "http://localhost:8080/leaderID"
         response = requests.get(url)
         if response.status_code == 200:
             LEADER_ID = int(json.loads(response.content.decode())['ID'])
-            print(LEADER_ID)
-            print(Transaction_id, type(Transaction_id))
-            if LEADER_ID != None:
+            if LEADER_ID != None and LEADER_ID!=ID:#Checking if leader exists
                 with lock:
                     transactions=Pyro5.api.Proxy(f"PYRONAME:service.order{LEADER_ID}").fetch_transactions(Transaction_id-1)
-                    print(transactions)
                     with open(LOG_FILE, "a") as file:
                         writer = csv.writer(file)
                         if os.path.getsize(LOG_FILE) == 0:
@@ -75,11 +73,12 @@ class OrderService(object):
             print('Request failed with status code:', response.status_code)
     except Exception as e:
         print(traceback.print_exc())
+        print(e)
         print("Front end not active, No leader appointed!")
     
     def fetch_transactions(self, id):
+        #Sending transactions to new replicas
         entries = []
-        print("id"+str(id))
         with lock:
             current_transaction_id=OrderService.Transaction_id
             if id<OrderService.Transaction_id:
@@ -124,6 +123,8 @@ class OrderService(object):
                 with open(OrderService.PICKLE_FILE, "wb") as f:
                     pickle.dump(OrderService.Transaction_id, f) #Storing Transaction ID
                 # print(OrderService.FOLLOWERS)
+
+                #Sending transactions to replicas
                 for follower_id in range(1,NUM_REPLICAS+1):
                     try:
                         if follower_id != OrderService.ID:
@@ -142,9 +143,7 @@ class OrderService(object):
     def healthCheck(self):
         return True
 
-    def notifyLeader(self, leader_ID):
-        OrderService.LEADER_ID = leader_ID
-    
+    #Recieving new transactions from leader
     def updateLog(self, order_details):
         with lock:
             with open(OrderService.LOG_FILE, "a") as file:
@@ -155,6 +154,7 @@ class OrderService(object):
             OrderService.Transaction_id += 1
             with open(OrderService.PICKLE_FILE, "wb") as f:
                 pickle.dump(OrderService.Transaction_id, f)
+    
 
 
         
