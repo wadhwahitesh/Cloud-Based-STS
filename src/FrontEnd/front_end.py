@@ -53,7 +53,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     print("Fetching...")
                     response = CatalogService.Lookup(parsed_url[-1])
                     cache[parsed_url[-1].lower()] = response
-                    print(cache)
             self.send_response(200)
             self.send_header('Content-Type', 'json')
             self.end_headers()
@@ -63,6 +62,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_header('Content-Type', 'json')
             self.end_headers()
             self.wfile.write(json.dumps({"ID":LEADER}).encode('utf-8'))
+<<<<<<< HEAD
         elif parsed_url[1] == "logVal":
             client_transID = parsed_url[-1].split(',')
             print(client_transID)
@@ -74,6 +74,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_header('Content-Type', 'text/plain')
             self.end_headers()
             self.wfile.write(response.encode('utf-8'))
+=======
+        elif parsed_url[1] == "cache":
+            self.send_response(200)
+            self.send_header('Content-Type', 'json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"cache":cache}).encode('utf-8'))
+>>>>>>> 8027ed4fe0aa81a9ef7fa874e59a5b8cae64000d
             
 
 
@@ -92,7 +99,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.end_headers()
                 self.wfile.write(response_text.encode('utf-8'))
-                print(12345)
         else:
             orderData={}
             try:
@@ -105,7 +111,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     self.send_response(200)
                     self.send_header('Content-Type', 'json')
                     self.end_headers()
-                    print(1234)
                     self.wfile.write(response.encode('utf-8'))
             except:
                 leader_election()

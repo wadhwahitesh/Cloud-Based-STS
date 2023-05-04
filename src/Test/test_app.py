@@ -3,6 +3,8 @@ import http.client
 import json
 import os
 from dotenv import load_dotenv
+import Pyro5.api
+
 load_dotenv()  # Loading .env file
 
 HOST = "localhost"
@@ -139,6 +141,97 @@ def test_buyMoreThanQuantity():
 
     assert resp["error"]["code"] == 404
     assert resp["error"]["message"].lower() == "not enough stocks"#Should get this
+
+
+
+def test_Replication():
+    conn = http.client.HTTPConnection(HOST, port=PORT)
+    # Create a new order
+    request = {
+        "name": "gamestart",
+        "quantity": 1,
+        "type": "sell"
+    }
+    request = json.dumps(request)
+    headers = {"Content-Type": "application/json"}
+    conn.request("POST", "/orders", request, headers)
+    response = conn.getresponse()
+
+    # Check if the last entry in the trade logs are the same
+    last_lines = []
+    for i in range(1,4):
+        try:
+            if Pyro5.api.Proxy(f"PYRONAME:service.order{i}").healthCheck():
+                with open(f"OrderService/data/tradeLog_{i}.csv") as f:
+                    last_lines.append(f.readlines()[-1])
+        except:
+            continue
+
+    assert len(set(last_lines)) == 1
+
+def test_LeaderElection():
+    conn = http.client.HTTPConnection(HOST, port=PORT)
+    conn.request("GET", f"/leaderID")
+    resp = conn.getresponse()
+    resp = json.loads(resp.read().decode())
+    assert resp['ID'] == 1 or resp['ID'] == 2 or resp['ID'] == 3
+
+# def test_LeaderFailure():
+#     #Get leader id
+#     conn = http.client.HTTPConnection(HOST, port=PORT)
+#     conn.request("GET", f"/leaderID")
+#     resp = conn.getresponse()
+#     resp = json.loads(resp.read().decode())
+#     try:
+#         Pyro5.api.Proxy(f"PYRONAME:service.order{resp['ID']}").exit_service()
+#     except (Pyro5.errors.ConnectionClosedError):
+#         pass
+#     conn = http.client.HTTPConnection(HOST, port=PORT)
+#     # Create a new order
+#     request = {
+#         "name": "gamestart",
+#         "quantity": 1,
+#         "type": "sell"
+#     }
+#     request = json.dumps(request)
+#     headers = {"Content-Type": "application/json"}
+#     conn.request("POST", "/orders", request, headers)
+#     resp = conn.getresponse()
+#     resp = json.loads(resp.read().decode())
+#     assert resp['data']['transaction_number']!=None
+    
+def test_cache():
+    
+    conn = http.client.HTTPConnection(HOST, port=PORT)
+    conn.request("GET", f"/stocks/GameStart")
+    resp = conn.getresponse()
+
+    conn.request("GET","/cache")
+    resp = conn.getresponse()
+    resp = json.loads(resp.read().decode())
+
+    assert "gamestart" in resp['cache']
+
+    request = {
+        "name": "gamestart",
+        "quantity": 1,
+        "type": "sell"
+    }
+    request = json.dumps(request)
+    headers = {"Content-Type": "application/json"}
+    conn.request("POST", "/orders", request, headers)
+    resp = conn.getresponse()
+
+
+    conn.request("GET","/cache")
+    resp = conn.getresponse()
+    resp = json.loads(resp.read().decode())
+
+    assert "gamestart" not in resp['cache']
+
+
+
+
 
 
 
