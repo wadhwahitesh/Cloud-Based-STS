@@ -4,8 +4,11 @@ import threading
 import socket
 import os
 import requests
+from dotenv import load_dotenv
 
+load_dotenv()
 
+CACHE = bool(os.getenv("CACHE"))
 #Making pyro threaded server
 Pyro5.config.SERVERTYPE = "thread"
 Pyro5.config.THREADPOOL_SIZE_MIN = 5
@@ -65,9 +68,10 @@ class CatalogService(object):
                 json.dump(DATA, outfile)
                 
              # Send an invalidation request to the front-end server
-            url = "http://localhost:8080/invalidate_cache"
-            invalidate_data = {"stock_name": stock_name}
-            response = requests.post(url, data=invalidate_data)
+            if CACHE:
+                url = "http://localhost:8080/invalidate_cache"
+                invalidate_data = {"stock_name": stock_name}
+                response = requests.post(url, data=invalidate_data)
             return 1
 
 

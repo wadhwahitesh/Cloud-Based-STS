@@ -20,6 +20,7 @@ NUM_THREADS = 5 #Setting max threads
 NUM_REPLICAS = int(os.getenv("NUM_REPLICAS"))
 REPLICAS = [""]*4
 LEADER = None
+CACHE = bool(os.getenv("CACHE"))
 cache = {}
 
 for i in range(1,NUM_REPLICAS+1):
@@ -46,13 +47,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             CatalogService = pyro.Proxy(
                 "PYRONAME:service.catalog")  # Getting Pyro Proxy
             with lock:
-                if parsed_url[-1].lower() in cache:
+                if CACHE and parsed_url[-1].lower() in cache:
                     print("Found in cache")
                     response = cache[parsed_url[-1].lower()]
                 else:
                     print("Fetching...")
                     response = CatalogService.Lookup(parsed_url[-1])
-                    cache[parsed_url[-1].lower()] = response
+                    if CACHE:
+                        cache[parsed_url[-1].lower()] = response
             self.send_response(200)
             self.send_header('Content-Type', 'json')
             self.end_headers()
