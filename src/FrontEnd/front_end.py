@@ -62,6 +62,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_header('Content-Type', 'json')
             self.end_headers()
             self.wfile.write(json.dumps({"ID":LEADER}).encode('utf-8'))
+        elif parsed_url[1] == "logVal":
+            client_transID = parsed_url[-1].split(',')
+            print(client_transID)
+            transactions = pyro.Proxy("PYRONAME:service.order"+str(LEADER)).getTransactions(client_transID)
+            response = ''
+            for row in transactions:
+                response += ','.join(row) + '\n'
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/plain')
+            self.end_headers()
+            self.wfile.write(response.encode('utf-8'))
         elif parsed_url[1] == "cache":
             self.send_response(200)
             self.send_header('Content-Type', 'json')

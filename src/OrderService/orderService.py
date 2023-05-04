@@ -57,7 +57,9 @@ class OrderService(object):
         response = requests.get(url)
         if response.status_code == 200:
             LEADER_ID = int(json.loads(response.content.decode())['ID'])
-            if LEADER_ID != None and LEADER_ID!=ID:#Checking if leader exists
+            print(LEADER_ID)
+            print(Transaction_id, type(Transaction_id))
+            if LEADER_ID != None:
                 with lock:
                     transactions=Pyro5.api.Proxy(f"PYRONAME:service.order{LEADER_ID}").fetch_transactions(Transaction_id-1)
                     with open(LOG_FILE, "a") as file:
@@ -100,6 +102,20 @@ class OrderService(object):
         OrderService.LEADER_ID = ID
         # if ID == OrderService.ID:
         #     OrderService.FOLLOWERS = followers
+    
+    def getTransactions(self, ids):
+        curr = 0
+        entries = []
+        with open(OrderService.LOG_FILE, "r") as file:
+            reader = csv.reader(file)
+            next(reader)
+            for row in reader:
+                if row[0] == ids[curr]:
+                    entries.append(row)
+                    curr+=1
+                    if curr==len(ids):
+                        break
+        return entries
 
 
     def Trade(self, stock_name, trade_type, quantity):
