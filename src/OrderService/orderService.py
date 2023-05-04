@@ -58,7 +58,7 @@ class OrderService(object):
             LEADER_ID = int(json.loads(response.content.decode())['ID'])
             print(LEADER_ID)
             print(Transaction_id, type(Transaction_id))
-            if LEADER_ID != None:
+            if LEADER_ID != None and LEADER_ID!=ID:
                 with lock:
                     transactions=Pyro5.api.Proxy(f"PYRONAME:service.order{LEADER_ID}").fetch_transactions(Transaction_id-1)
                     print(transactions)
@@ -155,6 +155,10 @@ class OrderService(object):
             OrderService.Transaction_id += 1
             with open(OrderService.PICKLE_FILE, "wb") as f:
                 pickle.dump(OrderService.Transaction_id, f)
+    
+    def exit_service(self):
+        sys.exit(0)
+        # raise KeyboardInterrupt
 
 
         

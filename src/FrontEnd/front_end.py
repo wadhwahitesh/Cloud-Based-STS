@@ -63,6 +63,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_header('Content-Type', 'json')
             self.end_headers()
             self.wfile.write(json.dumps({"ID":LEADER}).encode('utf-8'))
+        elif parsed_url[1] == "cache":
+            self.send_response(200)
+            self.send_header('Content-Type', 'json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"cache":cache}).encode('utf-8'))
             
 
 
