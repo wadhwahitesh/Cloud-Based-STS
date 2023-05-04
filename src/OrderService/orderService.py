@@ -57,8 +57,6 @@ class OrderService(object):
         response = requests.get(url)
         if response.status_code == 200:
             LEADER_ID = int(json.loads(response.content.decode())['ID'])
-            print(LEADER_ID)
-            print(Transaction_id, type(Transaction_id))
             if LEADER_ID != None:
                 with lock:
                     transactions=Pyro5.api.Proxy(f"PYRONAME:service.order{LEADER_ID}").fetch_transactions(Transaction_id-1)
@@ -74,7 +72,6 @@ class OrderService(object):
         else:
             print('Request failed with status code:', response.status_code)
     except Exception as e:
-        print(traceback.print_exc())
         print(e)
         print("Front end not active, No leader appointed!")
     
