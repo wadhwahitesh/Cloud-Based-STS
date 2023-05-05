@@ -17,6 +17,8 @@ load_dotenv()
 Pyro5.config.SERVERTYPE = "thread"
 Pyro5.config.THREADPOOL_SIZE_MIN = 5
 NUM_REPLICAS = int(os.getenv("NUM_REPLICAS"))
+HOST = "localhost"
+PORT = int(os.getenv("HOST_PORT"))
 
 lock = threading.Lock()
 
@@ -53,7 +55,7 @@ class OrderService(object):
     #Getting all the new transactions from the leader
     try:
 
-        url = "http://localhost:8080/leaderID"
+        url = f"http://{HOST}:{PORT}/leaderID"
         response = requests.get(url)
         if response.status_code == 200:
             LEADER_ID = int(json.loads(response.content.decode())['ID'])
@@ -72,7 +74,6 @@ class OrderService(object):
         else:
             print('Request failed with status code:', response.status_code)
     except Exception as e:
-        print(e)
         print("Front end not active, No leader appointed!")
     
     def fetch_transactions(self, id):
@@ -135,7 +136,6 @@ class OrderService(object):
                 OrderService.Transaction_id+=1
                 with open(OrderService.PICKLE_FILE, "wb") as f:
                     pickle.dump(OrderService.Transaction_id, f) #Storing Transaction ID
-                # print(OrderService.FOLLOWERS)
 
                 #Sending transactions to replicas
                 for follower_id in range(1,NUM_REPLICAS+1):
@@ -145,7 +145,6 @@ class OrderService(object):
                             follower.updateLog(
                                 order_details)
                     except Exception as e:
-                        print(e)
                         continue
                 return json.dumps(MSG1)
         elif response==0:

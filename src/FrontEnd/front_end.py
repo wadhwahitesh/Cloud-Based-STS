@@ -20,7 +20,7 @@ NUM_THREADS = 5 #Setting max threads
 NUM_REPLICAS = int(os.getenv("NUM_REPLICAS"))
 REPLICAS = [""]*4
 LEADER = None
-CACHE = bool(os.getenv("CACHE"))
+CACHE = eval(os.getenv("CACHE"))
 cache = {}
 
 for i in range(1,NUM_REPLICAS+1):

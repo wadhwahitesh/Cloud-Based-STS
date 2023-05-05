@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-CACHE = bool(os.getenv("CACHE"))
+CACHE = eval(os.getenv("CACHE"))
 #Making pyro threaded server
 Pyro5.config.SERVERTYPE = "thread"
 Pyro5.config.THREADPOOL_SIZE_MIN = 5

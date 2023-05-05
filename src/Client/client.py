@@ -9,7 +9,7 @@ load_dotenv()       #Loading .env file
 
 HOST = "localhost"
 PORT = os.getenv("HOST_PORT")
-PROBAB = 0.7      #Probability for making a trade order
+PROBAB = 0.8     #Probability for making a trade order
 
 TRADE_TYPES = ["buy", "sell"]
 STOCK_NAME = ["GameStart", "BoarCo", "MenhirCo", "FishCo"]
@@ -21,7 +21,7 @@ with open(FILE_NAME, "w") as f:
     writer.writerow(["Transaction ID", "Stock Name", "Order Type", "Quantity"])
 
 
-
+start = time.time()
 for _ in range(20):
     conn = http.client.HTTPConnection(HOST, PORT)#Connecting
     stock_name = STOCK_NAME[random.randint(0, 3)]#Selecting random stock
@@ -60,6 +60,8 @@ for _ in range(20):
     conn.close()
     time.sleep(1)
 
+end = time.time()
+print((end-start)/20)
 transaction_ids = []
 transaction_log = []
 with open(FILE_NAME, "r") as f:
@@ -75,7 +77,6 @@ resp = conn.getresponse()
 resp = resp.read().decode()
 
 order_transactions = list(csv.reader(resp.splitlines()))
-print(resp, order_transactions)
 for i, transaction in enumerate(transaction_log):
     print(transaction,order_transactions[i], transaction==order_transactions[i])
 
