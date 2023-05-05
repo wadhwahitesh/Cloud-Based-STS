@@ -40,10 +40,6 @@ All of the below steps should be on a new terminal
 4. In FrontEnd directory, run "python3 front_end.py"
 5. Now for the client, inside the client directory, run "python3 client.py".
 
-## For running tests 
-
-Run "pytest" inside the src folder. 
-
 ## Group Contribution 
 
 Anchal completed part 1 and 2 
