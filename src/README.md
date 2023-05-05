@@ -6,6 +6,12 @@ Should have python-dotenv and pyro5 pip installed.
 
 or run "pip3 install python-dotenv pyro5"
 
+
+## For running tests 
+
+Run "pytest" inside the src folder once the nameserver, catalog service, order service replicas, and the front end service is running. 
+
+
 ## For running with AWS
 
 1. run aws ec2 run-instances --image-id ami-0d73480446600f555 --instance-type m5a.large --key-name vockey > instance.json
@@ -33,6 +39,10 @@ All of the below steps should be on a new terminal
 5. Start the order service replica 1 in OrderSerive directory, run "python3 orderService.py 3"
 4. In FrontEnd directory, run "python3 front_end.py"
 5. Now for the client, inside the client directory, run "python3 client.py".
+
+## For running tests 
+
+Run "pytest" inside the src folder. 
 
 ## Group Contribution 
 
