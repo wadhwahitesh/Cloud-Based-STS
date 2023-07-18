@@ -194,3 +194,4 @@ Part 4 accounts for 30% of the total lab grade:
 2. Learn about the comics that these labs are based on https://en.wikipedia.org/wiki/Asterix
 3. Learn about Web framework such as Flask (python) https://flask.palletsprojects.com/en/2.2.x/  There are many python and java web frameworks - choose carefully if you decide to use one.
 4. Learn about model-view-controller (MVC) paradigm of writing web apps using frameworks https://en.wikipedia.org/wiki/Model–view–controller
+# Cloud-Based-STS
